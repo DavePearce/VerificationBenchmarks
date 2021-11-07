@@ -10,4 +10,4 @@ platforms=["whiley","boogie"]
 verify=false
 
 [build.boogie]
-timeout=600 
+timeout=360 
