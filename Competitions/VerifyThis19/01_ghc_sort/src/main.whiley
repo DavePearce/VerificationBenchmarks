@@ -1,210 +1,225 @@
-property ordered(int[] s, int a, int b)
-where all {j in a..b, k in a..b | j < k ==> s[j] <= s[k]}
+// This example is taken from the VerifyThis'19 Competition.
+//
+// Given a sequence s, the monotonic cutpoints are any indices which
+// cut s into segments that are monotonic: each segment's elements are
+// either all increasing or all decreasing.  For example:
+//
+// s = [1,2,3,4,5,7],         cuts = [0,6]
+// s = [1,4,7,3,3,5,9],   cuts = [0,3,5,7] (i.e. 1,4,7 | 3,3 | 5,9 )
+// s = [6,3,4,2,5,3,7], cuts = [0,2,3,6,7] (i.e. 6,3 | 4,2 | 5,3 | 7 )
+//
+// This challenge focuses on maximal cut points.  That is, we cannot
+// extend any segment further.
+type uint is (int x) where x >= 0
 
-property increasing(int[] s, int a, int b)
-where all {j in a..b, k in a..b | j < k ==> s[j] < s[k]}
+property non_empty(int[] seq)
+where |seq| > 0
 
-property decreasing(int[] s, int a, int b)
-where all {j in a..b, k in a..b | j < k ==> s[j] >= s[k]}
+property begin_to_end(int[] seq, int b, int e)
+where seq[0] == b && seq[|seq|-1] == e
 
-property monotonic(int[] s, int a, int b)
-where increasing(s,a,b) || decreasing(s,a,b)
+property within_bounds(int[] seq, int n)
+where all { k in 0..|seq| | 0 <= seq[k] && seq[k] <= n }
 
-property same_contents(int[] a, int[] b)
-where |a| == |b|
-where all {i in 0..|a| | some {j in 0..|b| | a[i] == b[j]}}
-where all {i in 0..|a| | count(a, a[i], |a|-1) == count(b, a[i], |b|-1)} 
+property reversed(int[] xs, int[] ys, int n)
+where all { k in 0..n | xs[k] == ys[|xs|-(k+1)]}
 
-property monotonic_cuts(int[] s, int[] c, int b)
-where increasing(c, 0, |c|) && |c| > 0
-where all {k in 0..|c| | 0 <= c[k] && c[k] <= b}
-where c[0] == 0 && c[|c|-1] == b
-where all {k in 1..|c| | |s| >= 1 && c[k] <= |s| ==> monotonic(s, c[k-1], c[k])}
+// Sequence [start..end) is sorted.
+property sorted(int[] seq, int start, int end)
+where all { i in start .. end, j in start .. end | i < j ==> seq[i] <= seq[j] }
 
-function count(int[] array, int item, int index) -> (int out)
-requires index >= 0 && index < |array|
-ensures out >= 0
-ensures |array| == 0 ==> out == 0
-ensures |array| != 0 && index == 0 && item == array[0] ==> out == 1
-ensures |array| != 0 && index == 0 && item != array[0] ==> out == 0
-ensures |array| != 0 && index > 0 && item == array[index] ==> out == count(array, item, index - 1) + 1
-ensures |array| != 0 && index > 0 && item != array[index] ==> out == count(array, item, index - 1):
-    int i = 0
-    if (|array| != 0):
-        if (index == 0):
-            if (item == array[0]):
-                i = 1
-            else:
-                i = 0
-        else:
-            if (array[index] == item):
-                i = count(array, item, index - 1) + 1
-            else:
-                i = count(array, item, index - 1)
-    return i
+public property below(int[] src, int s_start, int s_end, int[] dst, int d_start, int d_end)
+where all { i in s_start .. s_end, j in d_start .. d_end | src[i] <= dst[j] }
 
-function append(int[] a, int[] b) -> (int[] out)
-ensures |out| == |a| + |b|
-ensures all {i in 0..|a| | a[i] == out[i]} && all {i in 0..|b| | b[i] == out[i + |a|]}:
-    int[] r = a
-    for j in 0..|b|
-    where |r| == |a| + j
-    where all {i in 0..|a| | a[i] == r[i]} && all {i in 0..j | b[i] == r[i + |a|]}:
-        r = append(r, b[j])
-    return r
+// Sequence [start..end) is monotonically increasing.  For example,
+// consider this sequence
+//
+// +-+-+-+-+-+
+// |0|1|2|1|0|
+// +-+-+-+-+-+
+//  0 1 2 3 4
+//
+// Then, [0..3) is monotonically increasing, but [2..4) is not.
+property increasing(int[] seq, int start, int end)
+where all { i in start .. end, j in start .. end | i < j ==> seq[i] < seq[j] }
 
-function append(int[] array, int x) -> (int[] out)
-ensures |out| == |array| + 1 && all {i in 0..|array| | array[i] == out[i]}
-ensures out[|array|] == x:
-    int[] output = [x; |array| + 1]
-    for i in 0..|array|
-    where |output| == |array| + 1 && output[|array|] == x && all {j in 0..i | array[j] == output[j]}:
-        output[i] = array[i]
-    return output   
+// Sequence [start..end) is monotonically decreasing.  For example,
+// consider this sequence
+//
+// +-+-+-+-+-+
+// |0|1|2|1|0|
+// +-+-+-+-+-+
+//  0 1 2 3 4
+//
+// Then, [2..5) is monotonically decreasing, but [1..4) is not.
+property decreasing(int[] seq, int start, int end)
+where all { i in start .. end, j in start .. end | i < j ==> seq[i] >= seq[j] }
 
-function append(int[][] array, int[] x) -> (int[][] out)
-ensures |out| == |array| + 1 && all {i in 0..|array| | array[i] == out[i]}
-ensures out[|array|] == x:
-    int[][] output = [x; |array| + 1]
-    for i in 0..|array|
-    where |output| == |array| + 1 && output[|array|] == x && all {j in 0..i | array[j] == output[j]}:
-        output[i] = array[i]
-    return output       
+// Sequence [start..end) is either monotonically increasing or
+// decreasing.  For example, consider this sequence:
+//
+// +-+-+-+-+-+
+// |0|1|2|1|0|
+// +-+-+-+-+-+
+//  0 1 2 3 4
+//
+// Then, [2..5) is monotonically decreasing and [0..3) is
+// monotonically increasing.  But, [1..4) is neither increasing nor
+// decreasing.
+property monotonic(int[] seq, int start, int end)
+where increasing(seq,start,end) || decreasing(seq,start,end)
 
-function slice(int[] a, int start, int end) -> (int[] out)
-requires 0 <= start && start <= end && end <= |a|
-ensures |out| == end - start
-ensures all {i in start..end | a[i] == out[i - start]}:
-    int[] s = []
-    for i in start..end
-    where |s| == i - start
-    where all {j in start..i | a[j] == s[j - start]}:
-        s = append(s, a[i])
-    return s
+// Sequence [start..end) is a maximal monotonic sequence (i.e. cannot
+// be further lengthened without breaking the monotonic propery).
+// For example, consider this sequence:
+//
+// +-+-+-+-+-+
+// |0|1|2|1|0|
+// +-+-+-+-+-+
+//  0 1 2 3 4
+//
+// Then, [0..2) is monotonically increasing but it is not maximal
+// because [0..3) is also monotonically increasing.
+property maximal(int[] seq, int start, int end)
+where (end >= |seq|) || !monotonic(seq,start,end+1)
 
-function reverse(int[] s) -> (int[] r)
-requires decreasing(s, 0, |s|)
-ensures ordered(r, 0, |r|)
-ensures |r| == |s|
-//ensures same_contents(r, s)
-ensures all {i in 0..|s| | r[i] == s[|s|-1-i]}:
-    int[] out = []
-    int k = 0
-    while k < |s|
-    where 0 <= k && k <= |s|
-    where |out| == k
-    where all {i in 0..k | out[i] == s[|s|-1-i]}
-    //where same_contents(out, slice(s, |s|-k, |s|))
-    where ordered(out, 0, k):
-        out = append(out, s[|s|-1-k])
-        k = k + 1
-    return out
+// Monotonic property for a set of cutpoints in a given sequence,
+// where each cut point identifies the least element in a segment.
+// For example, consider this sequence:
+//
+// +-+-+-+-+-+
+// |0|1|2|1|0|
+// +-+-+-+-+-+
+//  0 1 2 3 4
+//
+// Then, [0,3,5] is a valid (actually maximal) set of cutpoints.
+// Another valid (though not maximal) set is [0,1,3,5].
+property monotonic(int[] seq, int[] cut)
+// Cut sequence itself be increasing
+where increasing(cut,0,|cut|)
+// Ensures individual segments are monotonic
+where all { k in 1 .. |cut| | monotonic(seq,cut[k-1],cut[k]) }
 
-// break down `a' into monotonic segments
-function monotonic_segments(int[] a) -> (int[][] s)
-ensures all {k in 0..|s| | ordered(s[k], 0, |s[k]|)}:
-    int[][] segs = []
-    int[] c = [0]
-    int x = 0
-    int y = 1
+// Maximal monotonic property for a set of cutpoints.  This means we
+// cannot increase the length of any segment without breaking the
+// monotonicy property.
+property maximal(int[] seq, int[] cut)
+// Ensures individual segments are monotonic
+where all { k in 1 .. |cut| | maximal(seq,cut[k-1],cut[k]) }
 
-    while y < |a|
-    where 0 <= x && x < y && y <= |a| + 1
-    where y == x + 1
-    where monotonic_cuts(a, c, x)
-    where |c| > 0 && c[0] == 0
-    where all {k in 0..|segs| | ordered(segs[k], 0, |segs[k]|)}:
-        bool inc = (a[x] < a[y])
-        while y < |a| && (a[y-1] < a[y] <==> inc)
-        where 0 <= x && x < y && y <= |a|
-        where monotonic_cuts(a, c, x)
-        where monotonic(a, x, y)
-        where monotonic_cuts(a, append(c, y), y):
-            y = y + 1
-        c = append(c, y)
-        int[] incseg = slice(a, x, y)
-        if decreasing(incseg, 0, |incseg|):
-            incseg = reverse(incseg)
-        assume ordered(incseg, 0, |incseg|)
+// =================================================================
+// find_cut_points
+// =================================================================
 
-        segs = append(segs, incseg)
-        x = y
-        y = x + 1
-    if x < |a|:
-        segs = append(segs, slice(a, x, y))
-        c = append(c, |a|)
-    assume all {k in 0..|segs| | ordered(segs[k], 0, |segs[k]|)}
-    return segs
+// This is left as native since it is proved separately in
+// 01_findcuts, and there is no need to reprove it here.
+native function find_cut_points(int[] s) -> (int[] c)
+// Verification task 1
+ensures non_empty(c) && begin_to_end(c,0,|s|) && within_bounds(c,|s|)
+// Verification task 2
+ensures monotonic(s,c)
+// Verification task 3
+ensures maximal(s,c)
 
-// merge `left' and `right' respecting order
-function merge_pair(int[] left, int[] right) -> (int[] m)
-requires ordered(left, 0, |left|)
-requires ordered(right, 0, |right|)
-ensures ordered(m, 0, |m|)
-//ensures same_contents(m, append(left, right))
-ensures |m| == |left| + |right|:
-    int x = 0
-    int y = 0
-    int[] merged = []
-    while x < |left| && y < |right|
-    where ordered(left, 0, |left|)
-    where ordered(right, 0, |right|)
-    where 0 <= x && x <= |left|
-    where 0 <= y && y <= |right|
-    where |merged| == x + y
-    where 0 < |merged| && x < |left| ==> merged[|merged|-1] <= left[x]
-    where 0 < |merged| && y < |right| ==> merged[|merged|-1] <= right[y]
-    //where same_contents(merged, append(slice(left, 0, x), slice(right, 0, y)))
-    where ordered(merged, 0, |merged|):
-        if left[x] < right[y]:
-            merged = append(merged, left[x])
+// =================================================================
+// GHC_sort
+// =================================================================
+
+//function ghc_sort(int[] seq) -> (int[] result)
+
+// =================================================================
+// Reverse
+// =================================================================
+
+// Reverse items in an array
+function reverse(int[] xs) -> (int[] ys)
+// Array is decreasing
+requires decreasing(xs,0,|xs|)
+// Returned array is same size as input
+ensures |xs| == |ys|
+// All items in return array in opposite order
+ensures reversed(xs,ys,|xs|)
+// Resulting array is sorted
+ensures sorted(ys,0,|ys|):
+    int[] zs = xs
+    //
+    for i in 0..|xs|
+    // Size of array unchanged
+    where |xs| == |zs|
+    // Everything so far reversed
+    where reversed(xs,zs,i):
+       xs[i] = zs[|xs| - (i+1)]
+    //
+    return xs
+
+// =================================================================
+// Merge
+// =================================================================
+
+// Merge two increasing segements together, forming a single
+// increasing segment.  
+function merge(int[] s, int[] t) -> (int[] result)
+// Both segments must be increasing
+requires sorted(s,0,|s|) && sorted(t,0,|t|)
+// Resulting array contains both inputs
+ensures |result| == |s| + |t|
+// Resulting array increasing
+ensures sorted(result,0,|result|):
+    // Calculate size of result
+    final int n = |s| + |t|
+    // Allocate space for result
+    int[] merged = [0;n]
+    //
+    uint x = 0
+    uint y = 0
+    uint z = 0     
+    //
+    while x < |s| && y < |t|
+    // Size of array doesn't change
+    where |merged| == n
+    // Pin amount merged to x + y
+    where x <= |s| && y <= |t| && z == x + y
+    // Everything so far below s[x..]
+    where below(merged,0,z,s,x,|s|)
+    // Everything so far below t[y..]    
+    where below(merged,0,z,t,y,|t|)
+    // Everything so far sorted
+    where sorted(merged,0,z):
+        if s[x] < t[y]:
+            merged[z] = s[x]
             x = x + 1
         else:
-            merged = append(merged, right[y])
+            merged[z] = t[y] 
             y = y + 1
-    if x < |left|:
-        int p = |merged|
-        assume p > 0
-        merged = append(merged, slice(left,x,|left|))
-        assume ordered(merged, 0, p) && ordered(left, x, |left|) && merged[p-1] <= left[x] ==> ordered(merged, 0, |merged|)
-        x = |left|
-    if y < |right|:
-        int p = |merged|
-        assume p > 0
-        merged = append(merged, slice(right,y,|right|))
-        assume ordered(merged, 0, p) && ordered(right, y, |right|) && merged[p-1] <= right[y] ==> ordered(merged, 0, |merged|)
-        y = |right|
-    return merged
-
-// merge all segments in `segs' pairwise
-function merge_once(int[][] segs) -> (int[][] m)
-requires all {k in 0..|segs| | ordered(segs[k], 0, |segs[k]|)}
-requires |segs| > 1
-ensures all {k in 0..|m| | ordered(m[k], 0, |m[k]|)}
-ensures |m| < |segs|:
-    int[][] merged = []
-    int x = 0
-    while x + 1 < |segs|
-    where 0 <= x && x <= |segs|
-    where all {k in 0..|merged| | ordered(merged[k], 0, |merged[k]|)}
-    where 2*|merged| <= x:
-        int[] left = segs[x]
-        int[] right = segs[x+1]
-        int[] n = merge_pair(left, right)
-        merged = append(merged, n)
-        x = x + 2
-    if x < |segs|:
-        merged = append(merged, segs[|segs|-1])
-    return merged
-
-// sort using GHC's generic method (a kind of patience sorting)
-function ghc_sort(int[] a) -> (int[] result)
-ensures ordered(result, 0, |result|):
-    int[][] segs = monotonic_segments(a)
-    while |segs| > 1
-    where all {k in 0..|segs| | ordered(segs[k], 0, |segs[k]|)}:
-        segs = merge_once(segs)
-    int[] merged = []
-    if |segs| > 0:
-        merged = segs[0]
+        z = z + 1
+    // Split
+    if x < |s|:
+        // Finish off s
+        while x < |s|
+        // Size of array doesn't change
+        where |merged| == n    
+        // Pin amount merged to x + y
+        where x <= |s| && z == x + y
+        // Everything so far below s[x..]
+        where below(merged,0,z,s,x,|s|)    
+        // Everything so far sorted
+        where sorted(merged,0,z):
+            merged[z] = s[x]
+            x = x + 1
+            z = z + 1
+    else:
+        // Finish off t
+        while y < |t|
+        // Size of array doesn't change
+        where |merged| == n    
+        // Pin amount merged to x + y
+        where y <= |t| && z == x + y
+        // Everything so far below s[x..]
+        where below(merged,0,z,t,y,|t|)    
+        // Everything so far sorted
+        where sorted(merged,0,z):
+            merged[z] = t[y]
+            y = y + 1
+            z = z + 1        
+    //
     return merged
