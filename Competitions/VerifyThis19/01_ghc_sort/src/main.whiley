@@ -1,16 +1,9 @@
 // This example is taken from the VerifyThis'19 Competition.
-//
-// Given a sequence s, the monotonic cutpoints are any indices which
-// cut s into segments that are monotonic: each segment's elements are
-// either all increasing or all decreasing.  For example:
-//
-// s = [1,2,3,4,5,7],         cuts = [0,6]
-// s = [1,4,7,3,3,5,9],   cuts = [0,3,5,7] (i.e. 1,4,7 | 3,3 | 5,9 )
-// s = [6,3,4,2,5,3,7], cuts = [0,2,3,6,7] (i.e. 6,3 | 4,2 | 5,3 | 7 )
-//
-// This challenge focuses on maximal cut points.  That is, we cannot
-// extend any segment further.
 type uint is (int x) where x >= 0
+
+// =================================================================
+// Monotonic / Cutpoint Properties
+// =================================================================
 
 property non_empty(int[] seq)
 where |seq| > 0
@@ -20,16 +13,6 @@ where seq[0] == b && seq[|seq|-1] == e
 
 property within_bounds(int[] seq, int n)
 where all { k in 0..|seq| | 0 <= seq[k] && seq[k] <= n }
-
-property reversed(int[] xs, int[] ys, int n)
-where all { k in 0..n | xs[k] == ys[|xs|-(k+1)]}
-
-// Sequence [start..end) is sorted.
-property sorted(int[] seq, int start, int end)
-where all { i in start .. end, j in start .. end | i < j ==> seq[i] <= seq[j] }
-
-public property below(int[] src, int s_start, int s_end, int[] dst, int d_start, int d_end)
-where all { i in s_start .. s_end, j in d_start .. d_end | src[i] <= dst[j] }
 
 // Sequence [start..end) is monotonically increasing.  For example,
 // consider this sequence
@@ -107,13 +90,52 @@ property maximal(int[] seq, int[] cut)
 // Ensures individual segments are monotonic
 where all { k in 1 .. |cut| | maximal(seq,cut[k-1],cut[k]) }
 
+// A monotonic segment
+type segment is (int[] items) where monotonic(items,0,|items|)
+
+// =================================================================
+// Array Properties
+// =================================================================
+
+property reversed(int[] xs, int[] ys, int n)
+where all { k in 0..n | xs[k] == ys[|xs|-(k+1)]}
+
+// Two array segments are equal
+property equal(int[] xs, int xStart, int[] ys, int yStart, int n)
+where all { k in 0..n | xs[k+xStart] == ys[k+yStart]}
+
+// Two arrays are equal
+property equal(int[] xs, int[] ys)
+where |xs| == |ys|
+where all { k in 0..|xs| | xs[k] == ys[k]}
+
+// An array segment and an array are equal
+property equal(int[] xs, int start, int end, int[] ys)
+where (end-start) == |ys|
+where equal(xs,start,ys,0,|ys|)
+
+// One array is the reverse of the other
+property reversed(int[] xs, int[] ys)
+where |xs| == |ys|
+where all { k in 0..|xs| | xs[k] == ys[|xs|-(k+1)]}
+
+// Sequence [start..end) is sorted.
+property sorted(int[] seq, int start, int end)
+where all { i in start .. end, j in start .. end | i < j ==> seq[i] <= seq[j] }
+
+public property below(int[] src, int s_start, int s_end, int[] dst, int d_start, int d_end)
+where all { i in s_start .. s_end, j in d_start .. d_end | src[i] <= dst[j] }
+
+// A sorted array
+type sorted is (int[] items) where sorted(items,0,|items|)
+
 // =================================================================
 // find_cut_points
 // =================================================================
 
 // This is left as native since it is proved separately in
 // 01_findcuts, and there is no need to reprove it here.
-native function find_cut_points(int[] s) -> (int[] c)
+native function find_cutpoints(int[] s) -> (uint[] c)
 // Verification task 1
 ensures non_empty(c) && begin_to_end(c,0,|s|) && within_bounds(c,|s|)
 // Verification task 2
@@ -125,7 +147,104 @@ ensures maximal(s,c)
 // GHC_sort
 // =================================================================
 
-//function ghc_sort(int[] seq) -> (int[] result)
+function ghc_sort(int[] seq) -> (sorted result):
+    // Identify cut points
+    uint[] cuts = find_cutpoints(seq)
+    // Raise them to separate (sorted) arrays
+    sorted[] segs = sort(raise(seq,cuts))
+    // Now merge all sorted segments together
+    result = []
+    //
+    for i in 0..|segs|:
+         result = merge(result,segs[i])
+    // Done
+    return result    
+
+// =================================================================
+// Raise
+// =================================================================
+
+// Raise a set of cutpoints over a sequence into an array of monotonic
+// segments.
+function raise(int[] seq, uint[] cuts) -> (segment[] segs)
+// Cuts cannot be empty, etc
+requires non_empty(cuts) && begin_to_end(cuts,0,|seq|) && within_bounds(cuts,|seq|)
+// Cut points define monotonic segments
+requires monotonic(seq,cuts)
+// One less segment than there are cuts
+ensures |segs| == |cuts| - 1
+// Every segment matches
+ensures all { k in 0..|segs| | equal(seq,cuts[k],cuts[k+1],segs[k]) }:
+    int n = |cuts| - 1
+    segs = [[]; n]
+    //
+    for i in 0 .. n
+    // Size of segs doesn't change
+    where |segs| == n
+    // Everything so far matches
+    where all { k in 0..i | equal(seq,cuts[k],cuts[k+1],segs[k]) }:
+        segs[i] = (segment) slice(seq,cuts[i],cuts[i+1])
+    //
+    return segs
+
+// Extract a slice [start,end) from original sequence
+function slice(int[] seq, uint start, uint end) -> (int[] result)
+// Slice cannot be negatively sized!
+requires start <= end && end <= |seq|
+// Result matches size of slice
+ensures |result| == end - start
+// Every item matches original sequence
+ensures all { k in 0..|result| | result[k] == seq[k+start] }:
+    int n = end - start
+    int[] slice = [0; n]
+    //
+    uint i = 0
+    uint j = start
+    //
+    while i < n
+    // Ensure relationship
+    where j == (i + start)
+    // Size of slice unchanged
+    where |slice| == n
+    // Everything preserved thus far
+    where all { k in 0..i | slice[k] == seq[k+start] }:
+        slice[i] = seq[j]
+        i = i + 1
+        j = j + 1
+    //
+    return slice
+
+// =================================================================
+// Sort
+// =================================================================
+
+// Given a set of monotonic segments, return a set of sorted segments.
+// This is done by iterating through the segments and reversing every
+// decreasing segment.
+function sort(segment[] segs) -> (sorted[] nsegs)
+// Same number of sorteds produced
+ensures |segs| == |nsegs|
+// Every segment returned either matches its corresponding segment or is its reverse
+ensures all { k in 0..|segs| | equal(segs[k],nsegs[k]) || reversed(segs[k],nsegs[k]) }:
+    //
+    nsegs = [[]; |segs|]
+    //
+    for i in 0..|segs|
+    where |nsegs| == |segs|
+    where all { k in 0..i | equal(segs[k],nsegs[k]) || reversed(segs[k],nsegs[k]) }:
+        // Extract ith
+        segment ith = segs[i]
+        // Decide whether increasing or decreasing
+        if |ith| <= 1:
+            nsegs[i] = (sorted) ith
+        else if ith[0] < ith[1]:
+            // Increasing seg
+            nsegs[i] = (sorted) ith
+        else:
+            // Decreasing seg
+            nsegs[i] = (sorted) reverse(ith)
+    //
+    return nsegs
 
 // =================================================================
 // Reverse
@@ -156,15 +275,11 @@ ensures sorted(ys,0,|ys|):
 // Merge
 // =================================================================
 
-// Merge two increasing segements together, forming a single
-// increasing segment.  
-function merge(int[] s, int[] t) -> (int[] result)
-// Both segments must be increasing
-requires sorted(s,0,|s|) && sorted(t,0,|t|)
+// Merge two sorted segements together, forming a single
+// sorted segment.  
+function merge(sorted s, sorted t) -> (sorted result)
 // Resulting array contains both inputs
-ensures |result| == |s| + |t|
-// Resulting array increasing
-ensures sorted(result,0,|result|):
+ensures |result| == |s| + |t|:
     // Calculate size of result
     final int n = |s| + |t|
     // Allocate space for result
@@ -222,4 +337,4 @@ ensures sorted(result,0,|result|):
             y = y + 1
             z = z + 1        
     //
-    return merged
+    return (sorted) merged

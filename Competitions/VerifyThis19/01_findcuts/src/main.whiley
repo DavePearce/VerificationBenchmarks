@@ -101,7 +101,7 @@ where all { k in 1 .. |cut| | maximal(seq,cut[k-1],cut[k]) }
 // find cut points
 // =================================================================
 
-function findCutPoints(int[] s) -> (int[] c)
+function find_cutpoints(int[] s) -> (int[] c)
 // Verification task 1
 ensures non_empty(c) && begin_to_end(c,0,|s|) && within_bounds(c,|s|)
 // Verification task 2
@@ -186,12 +186,12 @@ ensures all { k in 0..|cut| | ncut[k] == cut[k] }:
 
 public method test_01():
     int[] s = [1,2,3,4,5,7]
-    assert findCutPoints(s) == [0,6]
+    assert find_cutpoints(s) == [0,6]
 
 public method test_02():
     int[] s = [1,4,7,3,3,5,9]
-    assert findCutPoints(s) == [0,3,5,7]
+    assert find_cutpoints(s) == [0,3,5,7]
 
 public method test_03():
     int[] s = [6,3,4,2,5,3,7]
-    assert findCutPoints(s) == [0,2,4,6,7]
+    assert find_cutpoints(s) == [0,2,4,6,7]
