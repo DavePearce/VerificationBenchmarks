@@ -1,5 +1,5 @@
 [package]
-name="main"
+name="019_findcuts"
 authors=["David J. Pearce"]
 version="0.1.0"
 
@@ -10,4 +10,4 @@ platforms=["whiley","boogie"]
 verify=false
 
 [build.boogie]
-timeout=360 
+timeout=600

@@ -101,7 +101,7 @@ where all { k in 1 .. |cut| | maximal(seq,cut[k-1],cut[k]) }
 // find cut points
 // =================================================================
 
-function find_cutpoints(int[] s) -> (int[] c)
+function find_cut_points(int[] s) -> (int[] c)
 // Verification task 1
 ensures non_empty(c) && begin_to_end(c,0,|s|) && within_bounds(c,|s|)
 // Verification task 2
@@ -136,12 +136,12 @@ ensures maximal(s,c):
             where decreasing(s,x,y):
                 y = y + 1
         // Extend the cut
-        cut = extend(cut,y)
+        cut = extend(s,cut,x,y)
         x = y
         y = x + 1
     //
     if x < n:
-        cut = extend(cut,n)
+        cut = extend(s,cut,x,n)
     //
     return cut
 
@@ -159,39 +159,53 @@ ensures maximal(s,c):
 //
 // And support cut = [0,3], then we could extend it with [3,5) to
 // give [0,3,5].
-function extend(int[] cut, int end) -> (int[] ncut)
+native function extend(int[] seq, int[] cut, int start, int end) -> (int[] ncut)
+//
+requires non_empty(cut) && begin_to_end(cut,0,start) && within_bounds(cut,start)
+// Segment being added must be monotonic
+requires monotonic(seq,start,end)
+// Cut is monotonic
+requires monotonic(seq,cut)
+// Cut is maximal
+requires maximal(seq,cut)
 // Exactly one item appended
 ensures |ncut| == |cut| + 1
 // Item was appended
 ensures ncut[|cut|] == end
+// Ensure property
+ensures non_empty(ncut) && begin_to_end(ncut,0,end) && within_bounds(ncut,end)
 // Every item from original array is retained
-ensures all { k in 0..|cut| | ncut[k] == cut[k] }:
-    //
-    ncut = [end; |cut| + 1]
-    //
-    for i in 0..|cut|
-    // Array size unchanged
-    where |ncut| == |cut| + 1
-    // Last item preserved
-    where ncut[|cut|] == end
-    // Everything copied over so far
-    where all { k in 0..i | ncut[k] == cut[k] }:
-        ncut[i] = cut[i]
-    //
-    return ncut
+ensures all { k in 0..|cut| | ncut[k] == cut[k] }
+// Monotonicity preserved
+ensures monotonic(seq,ncut)
+// // Maximality preserverd
+ensures maximal(seq,ncut)
+    // //
+    // ncut = [end; |cut| + 1]
+    // //
+    // for i in 0..|cut|
+    // // Array size unchanged
+    // where |ncut| == |cut| + 1
+    // // Last item preserved
+    // where ncut[|cut|] == end
+    // // Everything copied over so far
+    // where all { k in 0..i | ncut[k] == cut[k] }:
+    //     ncut[i] = cut[i]
+    // //
+    // return ncut
 
 // =================================================================
 // Tests
 // =================================================================
 
-public method test_01():
-    int[] s = [1,2,3,4,5,7]
-    assert find_cutpoints(s) == [0,6]
+// public method test_01():
+//     int[] s = [1,2,3,4,5,7]
+//     assert find_cut_points(s) == [0,6]
 
-public method test_02():
-    int[] s = [1,4,7,3,3,5,9]
-    assert find_cutpoints(s) == [0,3,5,7]
+// public method test_02():
+//     int[] s = [1,4,7,3,3,5,9]
+//     assert find_cut_points(s) == [0,3,5,7]
 
-public method test_03():
-    int[] s = [6,3,4,2,5,3,7]
-    assert find_cutpoints(s) == [0,2,4,6,7]
+// public method test_03():
+//     int[] s = [6,3,4,2,5,3,7]
+//     assert find_cut_points(s) == [0,2,4,6,7]
