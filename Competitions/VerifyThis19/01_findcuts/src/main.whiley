@@ -136,50 +136,18 @@ ensures maximal(s,c):
             where decreasing(s,x,y):
                 y = y + 1
         // Extend the cut
-        cut = extend(s,cut,x,y)
+        cut = append(cut,y)
         x = y
         y = x + 1
     //
     if x < n:
-        cut = extend(s,cut,x,n)
+        cut = append(cut,n)
     //
     return cut
 
 // =================================================================
-// Extend
+// Append
 // =================================================================
-
-// Extend a given (maximally monotonic) cut with a new cut. For
-// example, consider this sequence:
-//
-// +-+-+-+-+-+
-// |0|1|2|1|0|
-// +-+-+-+-+-+
-//  0 1 2 3 4 
-//
-// And support cut = [0,3], then we could extend it with [3,5) to
-// give [0,3,5].
-function extend(int[] seq, uint[] cut, uint start, uint end) -> (uint[] ncut)
-// Cannot add an empty cut
-requires start < end && end <= |seq|
-// Cut meets basic properties
-requires non_empty(cut) && begin_to_end(cut,0,start) && within_bounds(cut,start)
-// Cut is monotonic
-requires monotonic(seq,cut)
-// New segment also monotonic
-requires monotonic(seq,start,end)
-// Cut is maximal
-requires maximal(seq,cut)
-// New cut also maximal
-requires maximal(seq,start,end)
-// Basic properties preserved
-ensures non_empty(ncut) && begin_to_end(ncut,0,end) && within_bounds(ncut,end)
-// Monotonicity preserved
-ensures monotonic(seq,ncut)
-// Maximality preserverd
-ensures maximal(seq,ncut):
-    // Just use append :)
-    return append(cut,end)    
 
 // Simple append function which should be in the standard library.
 function append(uint[] cut, uint end) -> (uint[] ncut)
