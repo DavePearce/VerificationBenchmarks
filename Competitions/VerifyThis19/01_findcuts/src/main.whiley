@@ -122,19 +122,13 @@ ensures maximal(s,c):
     where monotonic(s,cut)
     // Verification task 3
     where maximal(s,cut):
-        //
-        if s[x] < s[y]:
-            while y < n && (s[y-1] < s[y])
-            where x < y && y <= n
-            // Verification task 2
-            where increasing(s,x,y):
-                y = y + 1
-        else:
-            while y < n && (s[y-1] >= s[y])
-            where x < y && y <= n
-            // Verification task 2
-            where decreasing(s,x,y):
-                y = y + 1
+        bool inc = s[x] < s[y]
+        while y < n && (s[y-1] < s[y] <==> inc)
+        where x < y && y <= n
+        // Verification task 2
+        where inc ==> increasing(s,x,y)
+        where !inc ==> decreasing(s,x,y):
+            y = y + 1
         // Extend the cut
         cut = append(cut,y)
         x = y
