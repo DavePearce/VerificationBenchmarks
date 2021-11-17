@@ -109,7 +109,7 @@ ensures monotonic(s,c)
 // Verification task 3
 ensures maximal(s,c):
     final uint n = |s|
-    int[] cut = [0]
+    uint[] cut = [0]
     uint x = 0
     uint y = 1   
     //
@@ -159,10 +159,10 @@ ensures maximal(s,c):
 //
 // And support cut = [0,3], then we could extend it with [3,5) to
 // give [0,3,5].
-native function extend(int[] seq, int[] cut, int start, int end) -> (int[] ncut)
-//
+native function extend(int[] seq, uint[] cut, uint start, uint end) -> (uint[] ncut)
+// Cannot add an empty cut
 requires start < end
-//
+// Cut meets basic properties
 requires non_empty(cut) && begin_to_end(cut,0,start) && within_bounds(cut,start)
 // Segment being added must be monotonic
 requires monotonic(seq,start,end)
@@ -170,6 +170,8 @@ requires monotonic(seq,start,end)
 requires monotonic(seq,cut)
 // Cut is maximal
 requires maximal(seq,cut)
+// New segment also monotonic
+requires monotonic(seq,start,end)
 // Exactly one item appended
 ensures |ncut| == |cut| + 1
 // Item was appended
