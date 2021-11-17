@@ -150,7 +150,7 @@ ensures maximal(s,c):
 // =================================================================
 
 // Simple append function which should be in the standard library.
-function append(uint[] cut, uint end) -> (uint[] ncut)
+function append<T>(T[] cut, T end) -> (T[] ncut)
 // Cutuence extended by one
 ensures |ncut| == |cut| + 1
 // Every end from original array is retained
