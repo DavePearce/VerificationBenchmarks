@@ -119,73 +119,94 @@ property reversed(int[] xs, int[] ys)
 where |xs| == |ys|
 where all { k in 0..|xs| | xs[k] == ys[|xs|-(k+1)]}
 
-// Sequence [start..end) is sorted.
-property sorted(int[] seq, int start, int end)
+// Sequence [start..end) is ordered.
+property ordered(int[] seq, int start, int end)
 where all { i in start .. end, j in start .. end | i < j ==> seq[i] <= seq[j] }
 
 public property below(int[] src, int s_start, int s_end, int[] dst, int d_start, int d_end)
 where all { i in s_start .. s_end, j in d_start .. d_end | src[i] <= dst[j] }
 
-// A sorted array
-type sorted is (int[] items) where sorted(items,0,|items|)
+// A ordered array
+type ordered is (int[] items) where ordered(items,0,|items|)
 
 // =================================================================
-// find_cut_points
+// monotonic segments
 // =================================================================
 
-// This is left as native since it is proved separately in
-// 01_findcuts, and there is no need to reprove it here.
-native function find_cutpoints(int[] s) -> (uint[] c)
-// Verification task 1
-ensures non_empty(c) && begin_to_end(c,0,|s|) && within_bounds(c,|s|)
-// Verification task 2
-ensures monotonic(s,c)
-// Verification task 3
-ensures maximal(s,c)
-
-// =================================================================
-// GHC_sort
-// =================================================================
-
-function ghc_sort(int[] seq) -> (sorted result):
-    // Identify cut points
-    uint[] cuts = find_cutpoints(seq)
-    // Raise them to separate (sorted) arrays
-    sorted[] segs = sort(raise(seq,cuts))
-    // Now merge all sorted segments together
-    result = []
+function monotonic_segments(int[] s) -> (ordered[] segs):
+    final uint n = |s|
+    segs = []
+    uint[] cut = [0] // ghost    
+    uint x = 0
+    uint y = 1   
     //
-    for i in 0..|segs|:
-         result = merge(result,segs[i])
-    // Done
-    return result    
-
-// =================================================================
-// Raise
-// =================================================================
-
-// Raise a set of cutpoints over a sequence into an array of monotonic
-// segments.
-function raise(int[] seq, uint[] cuts) -> (segment[] segs)
-// Cuts cannot be empty, etc
-requires non_empty(cuts) && begin_to_end(cuts,0,|seq|) && within_bounds(cuts,|seq|)
-// Cut points define monotonic segments
-requires monotonic(seq,cuts)
-// One less segment than there are cuts
-ensures |segs| == |cuts| - 1
-// Every segment matches
-ensures all { k in 0..|segs| | equal(seq,cuts[k],cuts[k+1],segs[k]) }:
-    int n = |cuts| - 1
-    segs = [[]; n]
+    while y < n
+    // x always starts segment, and y advances to its end
+    where y == (x + 1) && x <= n
+    // Verification task 1
+    where non_empty(cut) && begin_to_end(cut,0,x) && within_bounds(cut,x)
+    // Verification task 2
+    where monotonic(s,cut)
+    // Verification task 3
+    where maximal(s,cut):
+        //
+        ordered incseg
+        //
+        if s[x] < s[y]:
+            while y < n && (s[y-1] < s[y])
+            where x < y && y <= n
+            // Verification task 2
+            where increasing(s,x,y):
+                y = y + 1
+            incseg = (ordered) slice(s,x,y)
+        else:
+            while y < n && (s[y-1] >= s[y])
+            where x < y && y <= n
+            // Verification task 2
+            where decreasing(s,x,y):
+                y = y + 1
+            incseg = (ordered) reverse(slice(s,x,y))
+        // Extend the cut
+        cut = append(cut,y)
+        // Extend segments
+        segs = append(segs,incseg)
+        x = y
+        y = x + 1
     //
-    for i in 0 .. n
-    // Size of segs doesn't change
-    where |segs| == n
-    // Everything so far matches
-    where all { k in 0..i | equal(seq,cuts[k],cuts[k+1],segs[k]) }:
-        segs[i] = (segment) slice(seq,cuts[i],cuts[i+1])
+    if x < n:
+        segs = append(segs, (ordered) slice(s,x,y))
     //
     return segs
+
+// =================================================================
+// Append
+// =================================================================
+
+// Simple append function which should be in the standard library.
+function append<T>(T[] lhs, T rhs) -> (T[] result)
+// Cutuence extended by one
+ensures |result| == |lhs| + 1
+// Every end from original array is retained
+ensures all { k in 0..|lhs| | result[k] == lhs[k] }
+// End appended
+ensures result[|lhs|] == rhs:
+    //
+    result = [rhs; |lhs| + 1]
+    //
+    for i in 0..|lhs|
+    // Array size unchanged
+    where |result| == |lhs| + 1
+    // Last end preserved
+    where result[|lhs|] == rhs
+    // Everything copied over so far
+    where all { k in 0..i | result[k] == lhs[k] }:
+        result[i] = lhs[i]
+    //
+    return result
+
+// =================================================================
+// Slice
+// =================================================================
 
 // Extract a slice [start,end) from original sequence
 function slice(int[] seq, uint start, uint end) -> (int[] result)
@@ -215,38 +236,6 @@ ensures all { k in 0..|result| | result[k] == seq[k+start] }:
     return slice
 
 // =================================================================
-// Sort
-// =================================================================
-
-// Given a set of monotonic segments, return a set of sorted segments.
-// This is done by iterating through the segments and reversing every
-// decreasing segment.
-function sort(segment[] segs) -> (sorted[] nsegs)
-// Same number of sorteds produced
-ensures |segs| == |nsegs|
-// Every segment returned either matches its corresponding segment or is its reverse
-ensures all { k in 0..|segs| | equal(segs[k],nsegs[k]) || reversed(segs[k],nsegs[k]) }:
-    //
-    nsegs = [[]; |segs|]
-    //
-    for i in 0..|segs|
-    where |nsegs| == |segs|
-    where all { k in 0..i | equal(segs[k],nsegs[k]) || reversed(segs[k],nsegs[k]) }:
-        // Extract ith
-        segment ith = segs[i]
-        // Decide whether increasing or decreasing
-        if |ith| <= 1:
-            nsegs[i] = (sorted) ith
-        else if ith[0] < ith[1]:
-            // Increasing seg
-            nsegs[i] = (sorted) ith
-        else:
-            // Decreasing seg
-            nsegs[i] = (sorted) reverse(ith)
-    //
-    return nsegs
-
-// =================================================================
 // Reverse
 // =================================================================
 
@@ -258,8 +247,8 @@ requires decreasing(xs,0,|xs|)
 ensures |xs| == |ys|
 // All items in return array in opposite order
 ensures reversed(xs,ys,|xs|)
-// Resulting array is sorted
-ensures sorted(ys,0,|ys|):
+// Resulting array is ordered
+ensures ordered(ys,0,|ys|):
     int[] zs = xs
     //
     for i in 0..|xs|
@@ -275,9 +264,9 @@ ensures sorted(ys,0,|ys|):
 // Merge
 // =================================================================
 
-// Merge two sorted segements together, forming a single
-// sorted segment.  
-function merge(sorted s, sorted t) -> (sorted result)
+// Merge two ordered segements together, forming a single
+// ordered segment.  
+function merge_pair(ordered s, ordered t) -> (ordered result)
 // Resulting array contains both inputs
 ensures |result| == |s| + |t|:
     // Calculate size of result
@@ -298,8 +287,8 @@ ensures |result| == |s| + |t|:
     where below(merged,0,z,s,x,|s|)
     // Everything so far below t[y..]    
     where below(merged,0,z,t,y,|t|)
-    // Everything so far sorted
-    where sorted(merged,0,z):
+    // Everything so far ordered
+    where ordered(merged,0,z):
         if s[x] < t[y]:
             merged[z] = s[x]
             x = x + 1
@@ -317,8 +306,8 @@ ensures |result| == |s| + |t|:
         where x <= |s| && z == x + y
         // Everything so far below s[x..]
         where below(merged,0,z,s,x,|s|)    
-        // Everything so far sorted
-        where sorted(merged,0,z):
+        // Everything so far ordered
+        where ordered(merged,0,z):
             merged[z] = s[x]
             x = x + 1
             z = z + 1
@@ -331,10 +320,25 @@ ensures |result| == |s| + |t|:
         where y <= |t| && z == x + y
         // Everything so far below s[x..]
         where below(merged,0,z,t,y,|t|)    
-        // Everything so far sorted
-        where sorted(merged,0,z):
+        // Everything so far ordered
+        where ordered(merged,0,z):
             merged[z] = t[y]
             y = y + 1
             z = z + 1        
     //
-    return (sorted) merged
+    return (ordered) merged
+
+// =================================================================
+// GHC_sort
+// =================================================================
+
+function ghc_sort(int[] seq) -> (ordered result):
+    // Split out into monotonic segments
+    ordered[] segs = monotonic_segments(seq)
+    // Now merge all ordered segments together
+    result = []
+    //
+    for i in 0..|segs|:
+         result = merge_pair(result,segs[i])
+    // Done
+    return result    

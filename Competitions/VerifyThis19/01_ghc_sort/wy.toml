@@ -6,8 +6,7 @@ version="0.1.0"
 [build]
 platforms=["whiley","boogie"]
 
-[build.whiley]
-verify=false
 
 [build.boogie]
 timeout=300
+verify=false
