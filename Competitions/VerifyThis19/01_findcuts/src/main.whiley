@@ -18,8 +18,8 @@ where |seq| > 0
 property begin_to_end(int[] seq, int b, int e)
 where seq[0] == b && seq[|seq|-1] == e
 
-property within_bounds(int[] seq, int n)
-where all { k in 0..|seq| | 0 <= seq[k] && seq[k] <= n }
+property within_bounds(int[] cut, int n)
+where all { k in 0..|cut| | 0 <= cut[k] && cut[k] <= n }
 
 // Sequence [start..end) is monotonically increasing.  For example,
 // consider this sequence
@@ -101,7 +101,7 @@ where all { k in 1 .. |cut| | maximal(seq,cut[k-1],cut[k]) }
 // find cut points
 // =================================================================
 
-function find_cut_points(int[] s) -> (int[] c)
+function find_cut_points(int[] s) -> (uint[] c)
 // Verification task 1
 ensures non_empty(c) && begin_to_end(c,0,|s|) && within_bounds(c,|s|)
 // Verification task 2
@@ -159,50 +159,49 @@ ensures maximal(s,c):
 //
 // And support cut = [0,3], then we could extend it with [3,5) to
 // give [0,3,5].
-native function extend(int[] seq, uint[] cut, uint start, uint end) -> (uint[] ncut)
+function extend(int[] seq, uint[] cut, uint start, uint end) -> (uint[] ncut)
 // Cannot add an empty cut
-requires start < end
+requires start < end && end <= |seq|
 // Cut meets basic properties
 requires non_empty(cut) && begin_to_end(cut,0,start) && within_bounds(cut,start)
-// Segment being added must be monotonic
-requires monotonic(seq,start,end)
 // Cut is monotonic
 requires monotonic(seq,cut)
-// Cut is maximal
-requires maximal(seq,cut)
 // New segment also monotonic
 requires monotonic(seq,start,end)
-// Exactly one item appended
-ensures |ncut| == |cut| + 1
-// Item was appended
-ensures ncut[|cut|] == end
-// Ensure property
+// Cut is maximal
+requires maximal(seq,cut)
+// New cut also maximal
+requires maximal(seq,start,end)
+// Basic properties preserved
 ensures non_empty(ncut) && begin_to_end(ncut,0,end) && within_bounds(ncut,end)
-// Every item from original array is retained
-ensures all { k in 0..|cut| | ncut[k] == cut[k] }
 // Monotonicity preserved
 ensures monotonic(seq,ncut)
-// // Maximality preserverd
-ensures maximal(seq,ncut)
-    // //
-    // ncut = [end; |cut| + 1]
-    // //
-    // for i in 0..|cut|
-    // // Array size unchanged
-    // where |ncut| == |cut| + 1
-    // // Last item preserved
-    // where ncut[|cut|] == end
-    // // Everything copied over so far
-    // where all { k in 0..i | ncut[k] == cut[k] }:
-    //     ncut[i] = cut[i]
-    // //
-    // assert non_empty(ncut)    
-    // assert begin_to_end(ncut,0,end)
-    // assert within_bounds(ncut,end)
-    // assert monotonic(seq,ncut)
-    // //assert maximal(seq,ncut)
-    // //
-    // return ncut
+// Maximality preserverd
+ensures maximal(seq,ncut):
+    // Just use append :)
+    return append(cut,end)    
+
+// Simple append function which should be in the standard library.
+function append(uint[] cut, uint end) -> (uint[] ncut)
+// Cutuence extended by one
+ensures |ncut| == |cut| + 1
+// Every end from original array is retained
+ensures all { k in 0..|cut| | ncut[k] == cut[k] }
+// End appended
+ensures ncut[|cut|] == end:
+    //
+    ncut = [end; |cut| + 1]
+    //
+    for i in 0..|cut|
+    // Array size unchanged
+    where |ncut| == |cut| + 1
+    // Last end preserved
+    where ncut[|cut|] == end
+    // Everything copied over so far
+    where all { k in 0..i | ncut[k] == cut[k] }:
+        ncut[i] = cut[i]
+    //
+    return ncut
 
 // =================================================================
 // Tests
